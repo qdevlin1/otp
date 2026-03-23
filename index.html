@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payments Center</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-surface-offset: #f7f8fb;
+      --color-surface-page: #ffffff;
+      --color-text-primary: #1c1d1f;
+      --color-text-secondary: #5e6167;
+      --color-element-line: #d9dce1;
+      --color-element-accent: #0075de;
+      --color-input-border: #d7dbe2;
+      --radius-sm: 8px;
+      --radius-xs: 4px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--color-surface-page);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 256px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #F7F8FB;
+      border-right: 1px solid var(--color-input-border);
+    }
+
+    .sidebar-top img,
+    .sidebar-bottom img {
+      display: block;
+      width: 256px;
+    }
+
+    .sidebar-menu {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
+    }
+
+    .sidebar-menu::-webkit-scrollbar { display: none; }
+
+    .sidebar-menu img {
+      display: block;
+      width: 256px;
+    }
+
+    /* ── Main content ── */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--color-surface-page);
+    }
+
+    .content-inner {
+      padding: 0 48px;
+      max-width: 1200px;
+    }
+
+    /* Page header */
+    .page-header {
+      background: var(--color-surface-page);
+      padding: 48px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--color-text-primary);
+      line-height: 0.94;
+      white-space: nowrap;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 338px;
+      height: 40px;
+      border: 1px solid var(--color-element-line);
+      border-radius: var(--radius-xs);
+      padding: 5px 12px;
+      background: var(--color-surface-page);
+    }
+
+    #search-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      color: var(--color-text-primary);
+      background: transparent;
+      font-family: var(--font);
+      min-width: 0;
+    }
+
+    #search-input::placeholder {
+      color: #848890;
+    }
+
+    /* Search active state */
+    .search-active .page-header { padding-bottom: 24px; }
+    .no-favorites .page-header  { padding-bottom: 16px; }
+    .search-active .favorites-section { display: none; }
+    .search-active .cards-row { margin-top: 0; }
+
+    .card.search-hidden { display: none !important; }
+    .card.search-visible,
+    .card.favorited.search-visible { display: flex !important; }
+
+    /* ── Tags (shown during search) ── */
+    .card-footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
+    .card-tags {
+      flex: 1;
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .search-active:not(.list-view) .card-tags.has-tags { display: flex; }
+
+    .card-tag {
+      background: rgba(67, 169, 255, 0.15);
+      color: var(--color-element-accent);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      white-space: nowrap;
+      line-height: 1.38;
+    }
+
+    .search-active .card { height: auto; min-height: 236px; }
+
+    /* Favorites section */
+    .favorites-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .favorites-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+    }
+
+    .favorites-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      line-height: 1;
+    }
+
+
+    /* Chip remove button (shown on hover) */
+    .chip-remove {
+      display: none;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      color: var(--color-text-primary);
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .fav-chip:hover .chip-remove { display: flex; }
+
+    /* Tooltip on chip remove */
+    .chip-remove {
+      position: relative;
+    }
+
+    .chip-remove::before {
+      content: "unpin from favorites";
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: var(--color-text-primary);
+      font-size: 14px;
+      font-weight: 400;
+      font-family: var(--font);
+      line-height: 1.38;
+      padding: 6px 10px;
+      border-radius: 6px;
+      box-shadow: 4px 4px 8px rgba(28,29,31,0.2), -4px -4px 8px rgba(28,29,31,0.05);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 20;
+    }
+
+    .chip-remove::after {
+      content: '';
+      position: absolute;
+      bottom: calc(100% + 3px);
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 20;
+    }
+
+    .chip-remove:hover::before,
+    .chip-remove:hover::after { opacity: 1; }
+
+    /* Favorites chip strip */
+    .favorites-row {
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--color-element-line);
+    }
+
+    .fav-chip {
+      flex: 0 0 auto;
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      height: auto;
+      padding: 12px 16px;
+      border: 1px solid #bec2c9;
+      border-radius: var(--radius-xs);
+      background: var(--color-surface-page);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .fav-chip:hover { background: rgba(67, 169, 255, 0.15); }
+
+    .fav-chip-label {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    /* Sections */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      padding-bottom: 32px;
+    }
+
+    .section { display: flex; flex-direction: column; gap: 16px; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      height: 52px;
+      padding: 32px 0;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      flex: 1;
+    }
+
+    .section-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .see-more {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-element-accent);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .see-more:hover { text-decoration: underline; }
+
+    /* Cards */
+    .cards-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      height: 236px;
+      background: var(--color-surface-page);
+      border: 1px solid var(--color-input-border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .card:hover {
+      border-color: var(--color-element-accent);
+      box-shadow: 0 2px 8px rgba(0,117,222,0.12);
+    }
+
+    .card-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .card-text { display: flex; flex-direction: column; gap: 8px; }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      line-height: 1;
+    }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--color-text-primary);
+      line-height: 1.38;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .star-btn {
+      position: relative;
+      width: 24px;
+      height: 24px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      color: #c5c8ce;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .star-btn:hover { color: #f0b429; }
+
+    /* Tooltip */
+    .star-btn::before {
+      content: "pin as favorite";
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      color: var(--color-text-primary);
+      font-size: 14px;
+      font-weight: 400;
+      font-family: var(--font);
+      line-height: 1.38;
+      padding: 6px 10px;
+      border-radius: 6px;
+      box-shadow: 4px 4px 8px rgba(28,29,31,0.2), -4px -4px 8px rgba(28,29,31,0.05);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 20;
+    }
+
+    .star-btn::after {
+      content: '';
+      position: absolute;
+      bottom: calc(100% + 3px);
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 20;
+    }
+
+    .star-btn:not(.starred):hover::before,
+    .star-btn:not(.starred):hover::after { opacity: 1; }
+
+    /* ── SVG icon helpers ── */
+    svg { display: block; }
+
+    /* ── View switcher ── */
+    .view-switcher {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      background: white;
+      border: 1px solid var(--color-input-border);
+      border-radius: var(--radius-xs);
+      padding: 4px;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .view-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 30px;
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--color-text-secondary);
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .view-btn.active {
+      background: rgba(67, 169, 255, 0.2);
+      color: var(--color-element-accent);
+    }
+
+    .view-btn:not(.active):hover { background: var(--color-surface-offset); }
+
+    .view-btn + .view-btn::before {
+      content: '';
+      position: absolute;
+      left: -1px;
+      top: 5px;
+      bottom: 5px;
+      width: 1px;
+      background: var(--color-element-line);
+    }
+
+    .view-btn.active + .view-btn::before,
+    .view-btn + .view-btn.active::before { display: none; }
+
+    /* ── List view overrides ── */
+
+    .content-inner.list-view .cards-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .content-inner.list-view .card {
+      height: auto;
+      min-height: 66px;
+      flex-direction: row;
+      align-items: center;
+      padding: 16px;
+      border: none;
+      border-bottom: 1px solid var(--color-element-line);
+      border-radius: 0;
+      gap: 16px;
+    }
+
+    .content-inner.list-view .cards-row .card:first-child {
+      border-top: 1px solid var(--color-element-line);
+    }
+
+    .content-inner.list-view .card-body {
+      flex: 1;
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .content-inner.list-view .card-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .content-inner.list-view .card-text {
+      flex: 1;
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .content-inner.list-view .card-title {
+      width: 220px;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .content-inner.list-view .card-desc {
+      flex: 1;
+      color: var(--color-text-secondary);
+      font-size: 14px;
+      min-width: 0;
+    }
+
+    .content-inner.list-view .card-footer {
+      width: auto;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    .content-inner.list-view .card-desc {
+      white-space: normal;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    /* ── Sort bar ── */
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      padding-bottom: 16px;
+    }
+
+    .sort-btn-wrapper { position: relative; }
+
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: var(--radius-xs);
+      background: transparent;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      font-family: var(--font);
+    }
+
+    .sort-btn:hover { background: var(--color-surface-offset); }
+
+    .sort-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      background: white;
+      border: 1px solid var(--color-element-line);
+      border-radius: 8px;
+      box-shadow: 4px 4px 8px rgba(28,29,31,0.2), -4px -4px 8px rgba(28,29,31,0.05);
+      z-index: 100;
+      min-width: 150px;
+      padding: 8px 0;
+    }
+
+    .sort-menu-group { padding: 0 8px; }
+
+    .sort-menu-item {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      text-align: left;
+      font-size: 14px;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      border-radius: var(--radius-xs);
+      white-space: nowrap;
+      font-family: var(--font);
+    }
+
+    .sort-menu-item:hover { background: var(--color-surface-offset); }
+    .sort-menu-item.selected { font-weight: 700; }
+
+    .sort-menu-divider {
+      height: 1px;
+      background: var(--color-element-line);
+      margin: 7.5px 0;
+    }
+
+    /* ── Extra cards (hidden until expanded) ── */
+    .card.extra { display: none; }
+    .section.expanded .card.extra { display: flex; }
+
+    /* ── Favorited cards (hidden, promoted to chip) ── */
+    .card.favorited { display: none !important; }
+
+    /* ── Star button states ── */
+    .star-btn { transition: color 0.15s; }
+    .star-btn.starred { color: #f0b429; }
+    .star-btn.starred svg path { fill: currentColor; }
+
+  </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-top">
+    <img src="Downloads/duoone/Member/Nav%20Top.svg" alt="" width="256" height="80">
+  </div>
+  <div class="sidebar-menu">
+    <img src="Downloads/duoone/Member/Main%20Menu.svg" alt="" width="256">
+  </div>
+  <div class="sidebar-bottom">
+    <img src="Downloads/duoone/Member/Nav%20Bottom.svg" alt="" width="256" height="138">
+  </div>
+</nav>
+
+<!-- Main content -->
+<main class="main-content">
+  <div class="content-inner">
+    <div class="page-header">
+      <div class="header-row">
+        <h1 class="page-title">One-time payments</h1>
+      </div>
+      <div class="favorites-section">
+      <div class="favorites-row">
+      </div>
+      </div>
+    </div>
+
+    <div class="sections">
+
+      <!-- Send payments -->
+      <div class="section" id="other-payments-section">
+        <div class="section-header">
+          <div class="search-box">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="7" cy="7" r="4.5" stroke="#5e6167" stroke-width="1.5"/><path d="M10.5 10.5L13.5 13.5" stroke="#5e6167" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input id="search-input" type="text" placeholder="Payment, recipient, circumstance..." autocomplete="off">
+          </div>
+          <div class="section-controls">
+            <div class="sort-btn-wrapper">
+              <button class="sort-btn" id="sort-btn">
+                Sort
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5L7 9L11 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="sort-menu" id="sort-menu" hidden>
+                <div class="sort-menu-group">
+                  <button class="sort-menu-item" data-sort="az">A-Z</button>
+                  <button class="sort-menu-item" data-sort="za">Z-A</button>
+                </div>
+                <div class="sort-menu-divider"></div>
+                <div class="sort-menu-group">
+                  <button class="sort-menu-item" data-sort="most">most used</button>
+                  <button class="sort-menu-item" data-sort="least">least used</button>
+                </div>
+              </div>
+            </div>
+            <div class="view-switcher">
+              <button class="view-btn" id="btn-list-view" title="List view">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 5H17M4 10H17M4 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="1.5" cy="5" r="1.5" fill="currentColor"/><circle cx="1.5" cy="10" r="1.5" fill="currentColor"/><circle cx="1.5" cy="15" r="1.5" fill="currentColor"/></svg>
+              </button>
+              <button class="view-btn active" id="btn-grid-view" title="Grid view">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2.75" y="2.75" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11.25" y="2.75" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2.75" y="11.25" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11.25" y="11.25" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="cards-row">
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip-contractor)">
+<path opacity="0.2" d="M11 27C11.5792 27.0003 12.1462 26.8329 12.6324 26.5179C13.1185 26.203 13.5031 25.7541 13.7398 25.2254C13.9764 24.6967 14.0548 24.1108 13.9657 23.5384C13.8766 22.9661 13.6237 22.4317 13.2375 22H27.2375C27.6237 22.4317 27.8766 22.9661 27.9657 23.5384C28.0548 24.1108 27.9764 24.6967 27.7397 25.2254C27.5031 25.7541 27.1185 26.203 26.6324 26.5179C26.1462 26.8329 25.5792 27.0003 25 27H11Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M21.9981 4.00003C22.5238 3.99812 23.0446 4.10018 23.5307 4.30034C24.0176 4.50079 24.4599 4.79565 24.8321 5.16791C25.2044 5.54017 25.4992 5.98247 25.6997 6.46928C25.8998 6.95538 26.0019 7.47626 26 8.00194V22C26 22.5523 25.5523 23 25 23C24.4477 23 24 22.5523 24 22V8.00003L24 7.99583C24.0011 7.73343 23.9502 7.47341 23.8503 7.23077C23.7504 6.98813 23.6034 6.76767 23.4179 6.58213C23.2324 6.39658 23.0119 6.24961 22.7693 6.1497C22.5266 6.04979 22.2666 5.99892 22.0042 6.00002L22 6.00003H5C4.44771 6.00003 4 5.55231 4 5.00003C4 4.44774 4.44771 4.00003 5 4.00003H21.9981Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M12 13C12 12.4477 12.4477 12 13 12H21C21.5523 12 22 12.4477 22 13C22 13.5523 21.5523 14 21 14H13C12.4477 14 12 13.5523 12 13Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M12 17C12 16.4477 12.4477 16 13 16H21C21.5523 16 22 16.4477 22 17C22 17.5523 21.5523 18 21 18H13C12.4477 18 12 17.5523 12 17Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M5.23741 6.01577C4.91561 5.9773 4.58929 6.0176 4.28653 6.13322C3.98376 6.24883 3.71363 6.43629 3.49938 6.67946C3.28513 6.92262 3.13318 7.21421 3.05662 7.52913C2.98005 7.84404 2.98116 8.17284 3.05985 8.48723C3.13854 8.80162 3.29245 9.09218 3.50833 9.33389C3.87623 9.74581 3.84054 10.378 3.42863 10.7459C3.01672 11.1138 2.38456 11.0781 2.01667 10.6662C1.5849 10.1827 1.27707 9.60161 1.1197 8.97283C0.962318 8.34405 0.9601 7.68645 1.11323 7.05662C1.26636 6.4268 1.57026 5.84362 1.99876 5.35729C2.42726 4.87095 2.96752 4.49604 3.57305 4.26481C4.17858 4.03358 4.83123 3.95297 5.47482 4.02991C6.11841 4.10685 6.73367 4.33904 7.26762 4.7065C7.80158 5.07395 8.23824 5.56566 8.54002 6.1393C8.8418 6.71294 8.99965 7.35132 9 7.99949V23.9995C9.00017 24.3236 9.0791 24.6428 9.22999 24.9296C9.38088 25.2164 9.59921 25.4623 9.86619 25.646C10.1332 25.8297 10.4408 25.9458 10.7626 25.9843C11.0844 26.0228 11.4107 25.9824 11.7135 25.8668C12.0162 25.7512 12.2864 25.5638 12.5006 25.3206C12.7149 25.0774 12.8668 24.7858 12.9434 24.4709C13.0199 24.156 13.0188 23.8272 12.9402 23.5128C12.8615 23.1984 12.7076 22.9079 12.4917 22.6662C12.2291 22.3721 12.1637 21.9513 12.3248 21.5914C12.4858 21.2316 12.8433 21 13.2375 21H27.2375C27.5221 21 27.7931 21.1213 27.9829 21.3334C28.4977 21.909 28.835 22.6214 28.9538 23.3846C29.0726 24.1477 28.968 24.9289 28.6525 25.6339C28.3371 26.3389 27.8242 26.9374 27.176 27.3573C26.5279 27.7771 25.7722 28.0003 25 28C24.9998 28 25.0002 28 25 28H11C10.9778 28 10.9558 27.9993 10.934 27.9979C10.7976 27.9956 10.6612 27.9864 10.5252 27.9701C9.88159 27.8932 9.26633 27.661 8.73238 27.2936C8.19842 26.9261 7.76176 26.4344 7.45998 25.8608C7.1582 25.2871 7.00035 24.6487 7 24.0006V8.00056C7 8.00038 7 8.00074 7 8.00056C6.99974 7.67666 6.92082 7.35712 6.77001 7.07046C6.61912 6.78364 6.40079 6.53779 6.13381 6.35406C5.86683 6.17034 5.55921 6.05424 5.23741 6.01577ZM14.4632 26H25.0005C25.3866 26.0002 25.7646 25.8886 26.0887 25.6787C26.4128 25.4687 26.6692 25.1694 26.827 24.817C26.9847 24.4645 27.037 24.0739 26.9776 23.6923C26.9395 23.4473 26.8563 23.2127 26.7335 23H14.8734C14.8757 23.0091 14.878 23.0181 14.8803 23.0272C15.0377 23.656 15.0399 24.3136 14.8868 24.9434C14.7963 25.3153 14.6534 25.671 14.4632 26Z" fill="#0070D4"/>
+</g>
+<defs><clipPath id="clip-contractor"><rect width="32" height="32" fill="white"/></clipPath></defs>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Contractor pay</span>
+                <span class="card-desc">You can pay your 1099 contractors for their services.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip-vendor)">
+<path opacity="0.2" d="M18 27V5C18 4.73478 17.8946 4.48043 17.7071 4.29289C17.5196 4.10536 17.2652 4 17 4H5C4.73478 4 4.48043 4.10536 4.29289 4.29289C4.10536 4.48043 4 4.73478 4 5V27" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V11H27C27.5304 11 28.0391 11.2107 28.4142 11.5858C28.7893 11.9609 29 12.4696 29 13V26H30C30.5523 26 31 26.4477 31 27C31 27.5523 30.5523 28 30 28H2C1.44772 28 1 27.5523 1 27C1 26.4477 1.44772 26 2 26H3V5C3 4.46957 3.21071 3.96086 3.58579 3.58579ZM5 26H17L17 5H5L5 26ZM19 13V26H27V13H19ZM7 9C7 8.44772 7.44772 8 8 8H12C12.5523 8 13 8.44772 13 9C13 9.55229 12.5523 10 12 10H8C7.44772 10 7 9.55229 7 9ZM9 17C9 16.4477 9.44772 16 10 16H14C14.5523 16 15 16.4477 15 17C15 17.5523 14.5523 18 14 18H10C9.44772 18 9 17.5523 9 17ZM21 17C21 16.4477 21.4477 16 22 16H24C24.5523 16 25 16.4477 25 17C25 17.5523 24.5523 18 24 18H22C21.4477 18 21 17.5523 21 17ZM7 22C7 21.4477 7.44772 21 8 21H12C12.5523 21 13 21.4477 13 22C13 22.5523 12.5523 23 12 23H8C7.44772 23 7 22.5523 7 22ZM21 22C21 21.4477 21.4477 21 22 21H24C24.5523 21 25 21.4477 25 22C25 22.5523 24.5523 23 24 23H22C21.4477 23 21 22.5523 21 22Z" fill="#0070D4"/>
+</g>
+<defs><clipPath id="clip-vendor"><rect width="32" height="32" fill="white"/></clipPath></defs>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Vendor payment</span>
+                <span class="card-desc">Pay businesses or entities for goods and services.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M24.5351 14.5351L14.5351 24.5351C13.5921 25.4459 12.3291 25.9498 11.0181 25.9385C9.70709 25.9271 8.45303 25.4012 7.52599 24.4742C6.59895 23.5471 6.0731 22.2931 6.06171 20.9821C6.05032 19.6711 6.55429 18.4081 7.46508 17.4651L17.4651 7.46508C18.4081 6.55429 19.6711 6.05032 20.9821 6.06171C22.2931 6.0731 23.5471 6.59895 24.4742 7.52599C25.4012 8.45303 25.9271 9.70709 25.9385 11.0181C25.9498 12.3291 25.4459 13.5921 24.5351 14.5351Z" fill="#0070D4"/>
+<path d="M23.8288 8.17125C23.0799 7.42258 22.0648 7.00138 21.0059 6.99997C19.947 6.99857 18.9308 7.41707 18.18 8.16375L16.7237 9.69C16.5375 9.86408 16.2918 9.96045 16.0369 9.95942C15.7819 9.95839 15.537 9.86003 15.3522 9.68446C15.1674 9.50888 15.0566 9.26934 15.0425 9.0148C15.0283 8.76026 15.112 8.50994 15.2762 8.315L16.7412 6.77875C16.7463 6.77302 16.7518 6.7676 16.7575 6.7625C17.8858 5.65242 19.4071 5.03316 20.9899 5.0396C22.5727 5.04605 24.0889 5.67768 25.2081 6.79691C26.3273 7.91614 26.959 9.4323 26.9654 11.0151C26.9718 12.5979 26.3526 14.1192 25.2425 15.2475C25.2374 15.2532 25.232 15.2587 25.2262 15.2638L23.69 16.7288C23.4951 16.893 23.2447 16.9767 22.9902 16.9625C22.7357 16.9484 22.4961 16.8376 22.3205 16.6528C22.145 16.468 22.0466 16.2231 22.0456 15.9681C22.0446 15.7132 22.1409 15.4675 22.315 15.2812L23.8412 13.825C24.5888 13.0733 25.0074 12.0556 25.005 10.9955C25.0027 9.93543 24.5796 8.91961 23.8288 8.17125ZM15.2762 22.31L13.82 23.8363C13.0662 24.5683 12.0547 24.9744 11.004 24.9667C9.95327 24.959 8.94777 24.5382 8.20479 23.7952C7.4618 23.0522 7.041 22.0467 7.03332 20.996C7.02564 19.9453 7.4317 18.9338 8.16375 18.18L9.69 16.7237C9.86408 16.5375 9.96045 16.2918 9.95942 16.0369C9.95839 15.7819 9.86003 15.537 9.68446 15.3522C9.50888 15.1674 9.26934 15.0566 9.0148 15.0425C8.76026 15.0283 8.50994 15.112 8.315 15.2762L6.77375 16.7412C6.76802 16.7463 6.7626 16.7518 6.7575 16.7575C5.64742 17.8858 5.02816 19.4071 5.0346 20.9899C5.04105 22.5727 5.67268 24.0889 6.79191 25.2081C7.91114 26.3273 9.4273 26.959 11.0101 26.9654C12.5929 26.9718 14.1142 26.3526 15.2425 25.2425C15.2482 25.2374 15.2537 25.232 15.2587 25.2262L16.7237 23.69C16.8233 23.5969 16.9029 23.4844 16.9574 23.3595C17.0119 23.2346 17.0404 23.0998 17.0409 22.9635C17.0415 22.8271 17.0141 22.6921 16.9606 22.5668C16.9071 22.4414 16.8285 22.3283 16.7296 22.2344C16.6308 22.1405 16.5138 22.0678 16.3858 22.0208C16.2579 21.9738 16.1217 21.9534 15.9855 21.961C15.8494 21.9685 15.7163 22.0038 15.5943 22.0647C15.4723 22.1256 15.3641 22.2108 15.2762 22.315V22.31ZM26 19H23C22.7348 19 22.4804 19.1054 22.2929 19.2929C22.1054 19.4804 22 19.7348 22 20C22 20.2652 22.1054 20.5196 22.2929 20.7071C22.4804 20.8946 22.7348 21 23 21H26C26.2652 21 26.5196 20.8946 26.7071 20.7071C26.8946 20.5196 27 20.2652 27 20C27 19.7348 26.8946 19.4804 26.7071 19.2929C26.5196 19.1054 26.2652 19 26 19ZM6 13H9C9.26522 13 9.51957 12.8946 9.70711 12.7071C9.89464 12.5196 10 12.2652 10 12C10 11.7348 9.89464 11.4804 9.70711 11.2929C9.51957 11.1054 9.26522 11 9 11H6C5.73478 11 5.48043 11.1054 5.29289 11.2929C5.10536 11.4804 5 11.7348 5 12C5 12.2652 5.10536 12.5196 5.29289 12.7071C5.48043 12.8946 5.73478 13 6 13ZM20 22C19.7348 22 19.4804 22.1054 19.2929 22.2929C19.1054 22.4804 19 22.7348 19 23V26C19 26.2652 19.1054 26.5196 19.2929 26.7071C19.4804 26.8946 19.7348 27 20 27C20.2652 27 20.5196 26.8946 20.7071 26.7071C20.8946 26.5196 21 26.2652 21 26V23C21 22.7348 20.8946 22.4804 20.7071 22.2929C20.5196 22.1054 20.2652 22 20 22ZM12 10C12.2652 10 12.5196 9.89464 12.7071 9.70711C12.8946 9.51957 13 9.26522 13 9V6C13 5.73478 12.8946 5.48043 12.7071 5.29289C12.5196 5.10536 12.2652 5 12 5C11.7348 5 11.4804 5.10536 11.2929 5.29289C11.1054 5.48043 11 5.73478 11 6V9C11 9.26522 11.1054 9.51957 11.2929 9.70711C11.4804 9.89464 11.7348 10 12 10Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Retroactive pay</span>
+                <span class="card-desc">Use this to adjust wages that were already paid, like for a retroactive raise.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M27 6V11H5V6C5 5.73478 5.10536 5.48043 5.29289 5.29289C5.48043 5.10536 5.73478 5 6 5H26C26.2652 5 26.5196 5.10536 26.7071 5.29289C26.8946 5.48043 27 5.73478 27 6Z" fill="#0070D4"/>
+<path d="M26 4H23V3C23 2.73478 22.8946 2.48043 22.7071 2.29289C22.5196 2.10536 22.2652 2 22 2C21.7348 2 21.4804 2.10536 21.2929 2.29289C21.1054 2.48043 21 2.73478 21 3V4H11V3C11 2.73478 10.8946 2.48043 10.7071 2.29289C10.5196 2.10536 10.2652 2 10 2C9.73478 2 9.48043 2.10536 9.29289 2.29289C9.10536 2.48043 9 2.73478 9 3V4H6C5.46957 4 4.96086 4.21071 4.58579 4.58579C4.21071 4.96086 4 5.46957 4 6V26C4 26.5304 4.21071 27.0391 4.58579 27.4142C4.96086 27.7893 5.46957 28 6 28H26C26.5304 28 27.0391 27.7893 27.4142 27.4142C27.7893 27.0391 28 26.5304 28 26V6C28 5.46957 27.7893 4.96086 27.4142 4.58579C27.0391 4.21071 26.5304 4 26 4ZM9 6V7C9 7.26522 9.10536 7.51957 9.29289 7.70711C9.48043 7.89464 9.73478 8 10 8C10.2652 8 10.5196 7.89464 10.7071 7.70711C10.8946 7.51957 11 7.26522 11 7V6H21V7C21 7.26522 21.1054 7.51957 21.2929 7.70711C21.4804 7.89464 21.7348 8 22 8C22.2652 8 22.5196 7.89464 22.7071 7.70711C22.8946 7.51957 23 7.26522 23 7V6H26V10H6V6H9ZM26 26H6V12H26V26ZM19.7075 16.7075L17.4137 19L19.7075 21.2925C19.8004 21.3854 19.8741 21.4957 19.9244 21.6171C19.9747 21.7385 20.0006 21.8686 20.0006 22C20.0006 22.1314 19.9747 22.2615 19.9244 22.3829C19.8741 22.5043 19.8004 22.6146 19.7075 22.7075C19.6146 22.8004 19.5043 22.8741 19.3829 22.9244C19.2615 22.9747 19.1314 23.0006 19 23.0006C18.8686 23.0006 18.7385 22.9747 18.6171 22.9244C18.4957 22.8741 18.3854 22.8004 18.2925 22.7075L16 20.4137L13.7075 22.7075C13.6146 22.8004 13.5043 22.8741 13.3829 22.9244C13.2615 22.9747 13.1314 23.0006 13 23.0006C12.8686 23.0006 12.7385 22.9747 12.6171 22.9244C12.4957 22.8741 12.3854 22.8004 12.2925 22.7075C12.1996 22.6146 12.1259 22.5043 12.0756 22.3829C12.0253 22.2615 11.9994 22.1314 11.9994 22C11.9994 21.8686 12.0253 21.7385 12.0756 21.6171C12.1259 21.4957 12.1996 21.3854 12.2925 21.2925L14.5863 19L12.2925 16.7075C12.1049 16.5199 11.9994 16.2654 11.9994 16C11.9994 15.7346 12.1049 15.4801 12.2925 15.2925C12.4801 15.1049 12.7346 14.9994 13 14.9994C13.2654 14.9994 13.5199 15.1049 13.7075 15.2925L16 17.5863L18.2925 15.2925C18.3854 15.1996 18.4957 15.1259 18.6171 15.0756C18.7385 15.0253 18.8686 14.9994 19 14.9994C19.1314 14.9994 19.2615 15.0253 19.3829 15.0756C19.5043 15.1259 19.6146 15.1996 19.7075 15.2925C19.8004 15.3854 19.8741 15.4957 19.9244 15.6171C19.9747 15.7385 20.0006 15.8686 20.0006 16C20.0006 16.1314 19.9747 16.2615 19.9244 16.3829C19.8741 16.5043 19.8004 16.6146 19.7075 16.7075Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Off-cycle salary</span>
+                <span class="card-desc">Use this to pay missed salary for any pay frequency.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bonus (extra) -->
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M23.0163 18.462C22.8793 18.5824 22.7774 18.7377 22.7215 18.9113C22.6656 19.085 22.6577 19.2705 22.6988 19.4483L24.3888 26.7658C24.4335 26.9569 24.4209 27.1569 24.3527 27.341C24.2844 27.525 24.1636 27.6849 24.0051 27.8007C23.8467 27.9165 23.6576 27.9831 23.4616 27.9923C23.2655 28.0014 23.0711 27.9526 22.9026 27.852L16.5151 23.977C16.3599 23.8827 16.1817 23.8327 16.0001 23.8327C15.8184 23.8327 15.6403 23.8827 15.4851 23.977L9.09756 27.852C8.92902 27.9526 8.73461 28.0014 8.53856 27.9923C8.3425 27.9831 8.15346 27.9165 7.99501 27.8007C7.83655 27.6849 7.71567 27.525 7.64744 27.341C7.57921 27.1569 7.56665 26.9569 7.61131 26.7658L9.30131 19.4483C9.34239 19.2705 9.33456 19.085 9.27866 18.9113C9.22275 18.7377 9.12086 18.5824 8.98381 18.462L3.34506 13.5433C3.19431 13.4152 3.08495 13.2452 3.03083 13.0549C2.9767 12.8646 2.98024 12.6625 3.04099 12.4742C3.10175 12.2859 3.21699 12.1199 3.37213 11.9971C3.52727 11.8744 3.71535 11.8004 3.91256 11.7845L11.3451 11.142C11.5264 11.1259 11.6999 11.0605 11.8468 10.953C11.9937 10.8455 12.1085 10.7 12.1788 10.532L15.0826 3.61203C15.1601 3.43312 15.2883 3.28079 15.4513 3.17378C15.6143 3.06678 15.8051 3.00977 16.0001 3.00977C16.1951 3.00977 16.3858 3.06678 16.5488 3.17378C16.7118 3.28079 16.84 3.43312 16.9176 3.61203L19.8213 10.532C19.8916 10.7 20.0064 10.8455 20.1533 10.953C20.3002 11.0605 20.4737 11.1259 20.6551 11.142L28.0876 11.7845C28.2848 11.8004 28.4728 11.8744 28.628 11.9971C28.7831 12.1199 28.8984 12.2859 28.9591 12.4742C29.0199 12.6625 29.0234 12.8646 28.9693 13.0549C28.9152 13.2452 28.8058 13.4152 28.6551 13.5433L23.0163 18.462Z" fill="#0070D4"/>
+<path d="M29.8999 12.161C29.7788 11.7877 29.5506 11.4583 29.2436 11.2138C28.9367 10.9693 28.5646 10.8206 28.1737 10.786L20.7499 10.146L17.8399 3.226C17.6884 2.8629 17.4329 2.55273 17.1054 2.33457C16.778 2.11641 16.3934 2 15.9999 2C15.6065 2 15.2218 2.11641 14.8944 2.33457C14.567 2.55273 14.3114 2.8629 14.1599 3.226L11.2587 10.146L3.82618 10.7898C3.43372 10.8227 3.05974 10.9708 2.75113 11.2155C2.44251 11.4602 2.21301 11.7905 2.0914 12.1651C1.96978 12.5397 1.96147 12.9419 2.0675 13.3212C2.17353 13.7005 2.38919 14.04 2.68743 14.2973L8.32618 19.2248L6.63618 26.5422C6.54682 26.9252 6.57232 27.326 6.70949 27.6945C6.84666 28.063 7.08943 28.3829 7.40742 28.6142C7.72542 28.8455 8.10455 28.9779 8.4974 28.9949C8.89025 29.0119 9.27939 28.9127 9.61618 28.7097L15.9912 24.8347L22.3799 28.7097C22.7167 28.9127 23.1059 29.0119 23.4987 28.9949C23.8916 28.9779 24.2707 28.8455 24.5887 28.6142C24.9067 28.3829 25.1494 28.063 25.2866 27.6945C25.4238 27.326 25.4493 26.9252 25.3599 26.5422L23.6712 19.2173L29.3087 14.2973C29.6069 14.0391 29.8221 13.6986 29.9273 13.3185C30.0325 12.9384 30.023 12.5357 29.8999 12.161ZM27.9974 12.786L22.3599 17.706C22.0856 17.9447 21.8814 18.2536 21.7696 18.5996C21.6577 18.9457 21.6422 19.3156 21.7249 19.6698L23.4187 26.9998L17.0349 23.1248C16.7235 22.9351 16.3658 22.8348 16.0012 22.8348C15.6365 22.8348 15.2789 22.9351 14.9674 23.1248L8.59243 26.9998L10.2749 19.6747C10.3576 19.3206 10.3422 18.9507 10.2303 18.6046C10.1184 18.2586 9.9143 17.9497 9.63993 17.711L3.99993 12.7935C3.99947 12.7898 3.99947 12.786 3.99993 12.7823L11.4299 12.1398C11.7927 12.1078 12.1398 11.9774 12.4339 11.7626C12.728 11.5478 12.9578 11.2568 13.0987 10.921L15.9999 4.00975L18.8999 10.921C19.0408 11.2568 19.2706 11.5478 19.5647 11.7626C19.8588 11.9774 20.2059 12.1078 20.5687 12.1398L27.9999 12.7823C27.9999 12.7823 27.9999 12.7898 27.9999 12.791L27.9974 12.786Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Bonus</span>
+                <span class="card-desc">You can give your employees supplemental pay in addition to their regular wages.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Commission (extra) -->
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M23.0163 18.462C22.8793 18.5824 22.7774 18.7377 22.7215 18.9113C22.6656 19.085 22.6577 19.2705 22.6988 19.4483L24.3888 26.7658C24.4335 26.9569 24.4209 27.1569 24.3527 27.341C24.2844 27.525 24.1636 27.6849 24.0051 27.8007C23.8467 27.9165 23.6576 27.9831 23.4616 27.9923C23.2655 28.0014 23.0711 27.9526 22.9026 27.852L16.5151 23.977C16.3599 23.8827 16.1817 23.8327 16.0001 23.8327C15.8184 23.8327 15.6403 23.8827 15.4851 23.977L9.09756 27.852C8.92902 27.9526 8.73461 28.0014 8.53856 27.9923C8.3425 27.9831 8.15346 27.9165 7.99501 27.8007C7.83655 27.6849 7.71567 27.525 7.64744 27.341C7.57921 27.1569 7.56665 26.9569 7.61131 26.7658L9.30131 19.4483C9.34239 19.2705 9.33456 19.085 9.27866 18.9113C9.22275 18.7377 9.12086 18.5824 8.98381 18.462L3.34506 13.5433C3.19431 13.4152 3.08495 13.2452 3.03083 13.0549C2.9767 12.8646 2.98024 12.6625 3.04099 12.4742C3.10175 12.2859 3.21699 12.1199 3.37213 11.9971C3.52727 11.8744 3.71535 11.8004 3.91256 11.7845L11.3451 11.142C11.5264 11.1259 11.6999 11.0605 11.8468 10.953C11.9937 10.8455 12.1085 10.7 12.1788 10.532L15.0826 3.61203C15.1601 3.43312 15.2883 3.28079 15.4513 3.17378C15.6143 3.06678 15.8051 3.00977 16.0001 3.00977C16.1951 3.00977 16.3858 3.06678 16.5488 3.17378C16.7118 3.28079 16.84 3.43312 16.9176 3.61203L19.8213 10.532C19.8916 10.7 20.0064 10.8455 20.1533 10.953C20.3002 11.0605 20.4737 11.1259 20.6551 11.142L28.0876 11.7845C28.2848 11.8004 28.4728 11.8744 28.628 11.9971C28.7831 12.1199 28.8984 12.2859 28.9591 12.4742C29.0199 12.6625 29.0234 12.8646 28.9693 13.0549C28.9152 13.2452 28.8058 13.4152 28.6551 13.5433L23.0163 18.462Z" fill="#0070D4"/>
+<path d="M29.8999 12.161C29.7788 11.7877 29.5506 11.4583 29.2436 11.2138C28.9367 10.9693 28.5646 10.8206 28.1737 10.786L20.7499 10.146L17.8399 3.226C17.6884 2.8629 17.4329 2.55273 17.1054 2.33457C16.778 2.11641 16.3934 2 15.9999 2C15.6065 2 15.2218 2.11641 14.8944 2.33457C14.567 2.55273 14.3114 2.8629 14.1599 3.226L11.2587 10.146L3.82618 10.7898C3.43372 10.8227 3.05974 10.9708 2.75113 11.2155C2.44251 11.4602 2.21301 11.7905 2.0914 12.1651C1.96978 12.5397 1.96147 12.9419 2.0675 13.3212C2.17353 13.7005 2.38919 14.04 2.68743 14.2973L8.32618 19.2248L6.63618 26.5422C6.54682 26.9252 6.57232 27.326 6.70949 27.6945C6.84666 28.063 7.08943 28.3829 7.40742 28.6142C7.72542 28.8455 8.10455 28.9779 8.4974 28.9949C8.89025 29.0119 9.27939 28.9127 9.61618 28.7097L15.9912 24.8347L22.3799 28.7097C22.7167 28.9127 23.1059 29.0119 23.4987 28.9949C23.8916 28.9779 24.2707 28.8455 24.5887 28.6142C24.9067 28.3829 25.1494 28.063 25.2866 27.6945C25.4238 27.326 25.4493 26.9252 25.3599 26.5422L23.6712 19.2173L29.3087 14.2973C29.6069 14.0391 29.8221 13.6986 29.9273 13.3185C30.0325 12.9384 30.023 12.5357 29.8999 12.161ZM27.9974 12.786L22.3599 17.706C22.0856 17.9447 21.8814 18.2536 21.7696 18.5996C21.6577 18.9457 21.6422 19.3156 21.7249 19.6698L23.4187 26.9998L17.0349 23.1248C16.7235 22.9351 16.3658 22.8348 16.0012 22.8348C15.6365 22.8348 15.2789 22.9351 14.9674 23.1248L8.59243 26.9998L10.2749 19.6747C10.3576 19.3206 10.3422 18.9507 10.2303 18.6046C10.1184 18.2586 9.9143 17.9497 9.63993 17.711L3.99993 12.7935C3.99947 12.7898 3.99947 12.786 3.99993 12.7823L11.4299 12.1398C11.7927 12.1078 12.1398 11.9774 12.4339 11.7626C12.728 11.5478 12.9578 11.2568 13.0987 10.921L15.9999 4.00975L18.8999 10.921C19.0408 11.2568 19.2706 11.5478 19.5647 11.7626C19.8588 11.9774 20.2059 12.1078 20.5687 12.1398L27.9999 12.7823C27.9999 12.7823 27.9999 12.7898 27.9999 12.791L27.9974 12.786Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Commission</span>
+                <span class="card-desc">Use this for supplemental payments after an employee completes a specific task or sale.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Tips (extra) -->
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M2 18.9998H6V25.9998H2C1.73478 25.9998 1.48043 25.8944 1.29289 25.7069C1.10536 25.5194 1 25.265 1 24.9998V19.9998C1 19.7346 1.10536 19.4802 1.29289 19.2927C1.48043 19.1052 1.73478 18.9998 2 18.9998ZM25.5 6.9998C24.9811 7.00012 24.4687 7.11583 24 7.33855C23.966 6.58788 23.6912 5.8681 23.2165 5.28566C22.7417 4.70322 22.092 4.28904 21.3637 4.10439C20.6353 3.91974 19.8668 3.97441 19.1719 4.26033C18.4769 4.54625 17.8925 5.04823 17.505 5.69202C17.1174 6.33582 16.9474 7.08725 17.02 7.83517C17.0925 8.58309 17.4039 9.2878 17.908 9.84505C18.4121 10.4023 19.0822 10.7825 19.8191 10.9295C20.556 11.0764 21.3207 10.9823 22 10.6611C22.0316 11.3455 22.2634 12.0057 22.6666 12.5597C23.0699 13.1136 23.6269 13.5371 24.2686 13.7774C24.9102 14.0178 25.6084 14.0645 26.2763 13.9118C26.9443 13.7591 27.5528 13.4136 28.0262 12.9183C28.4997 12.423 28.8174 11.7996 28.9399 11.1255C29.0624 10.4513 28.9843 9.756 28.7153 9.1258C28.4463 8.4956 27.9983 7.95822 27.4267 7.58029C26.8551 7.20237 26.1852 7.00053 25.5 6.9998Z" fill="#0070D4"/>
+<path d="M28.7913 17.6325C28.4191 17.3462 27.986 17.1496 27.5255 17.0578C27.0651 16.9661 26.5897 16.9819 26.1362 17.1038L20.9062 18.3063C21.0279 17.7922 21.0317 17.2574 20.9172 16.7417C20.8028 16.226 20.5731 15.7429 20.2454 15.3287C19.9177 14.9144 19.5005 14.5797 19.0251 14.3495C18.5496 14.1194 18.0282 13.9999 17.5 14H11.2425C10.717 13.9987 10.1964 14.1015 9.71092 14.3025C9.22539 14.5036 8.78451 14.7988 8.41375 15.1713L5.58625 18H2C1.46957 18 0.960859 18.2107 0.585786 18.5858C0.210714 18.9609 0 19.4696 0 20L0 25C0 25.5304 0.210714 26.0391 0.585786 26.4142C0.960859 26.7893 1.46957 27 2 27H15C15.0818 27 15.1632 26.99 15.2425 26.97L23.2425 24.97C23.2935 24.9579 23.3433 24.9411 23.3913 24.92L28.25 22.8525L28.305 22.8275C28.772 22.5942 29.1718 22.2458 29.4669 21.8152C29.7621 21.3846 29.9427 20.886 29.9918 20.3663C30.041 19.8466 29.957 19.3229 29.7478 18.8447C29.5387 18.3664 29.2112 17.9492 28.7962 17.6325H28.7913ZM2 20H5V25H2V20ZM27.4287 21.0263L22.6787 23.0488L14.875 25H7V19.4138L9.82875 16.5863C10.0138 16.3997 10.2341 16.2518 10.4768 16.1512C10.7195 16.0506 10.9798 15.9992 11.2425 16H17.5C17.8978 16 18.2794 16.158 18.5607 16.4393C18.842 16.7206 19 17.1022 19 17.5C19 17.8978 18.842 18.2794 18.5607 18.5607C18.2794 18.842 17.8978 19 17.5 19H14C13.7348 19 13.4804 19.1054 13.2929 19.2929C13.1054 19.4804 13 19.7348 13 20C13 20.2652 13.1054 20.5196 13.2929 20.7071C13.4804 20.8946 13.7348 21 14 21H18C18.0753 20.9998 18.1503 20.9914 18.2237 20.975L26.5987 19.0488L26.6375 19.0388C26.8932 18.9678 27.166 18.9939 27.4036 19.112C27.6412 19.2301 27.8267 19.4319 27.9245 19.6786C28.0222 19.9253 28.0253 20.1994 27.9331 20.4482C27.8409 20.697 27.6599 20.9029 27.425 21.0263H27.4287ZM20.5 12C20.7471 12.0003 20.9937 11.9802 21.2375 11.94C21.5117 12.7544 22.0133 13.4733 22.6832 14.0117C23.353 14.55 24.1629 14.8854 25.0173 14.978C25.8716 15.0706 26.7346 14.9167 27.5042 14.5344C28.2739 14.1521 28.9179 13.5574 29.3603 12.8206C29.8026 12.0839 30.0248 11.2359 30.0005 10.3769C29.9762 9.51787 29.7064 8.68379 29.2231 7.97325C28.7398 7.2627 28.0631 6.7054 27.2731 6.36724C26.4831 6.02909 25.6127 5.9242 24.765 6.065C24.501 5.28031 24.0256 4.58366 23.3912 4.05172C22.7568 3.51979 21.9879 3.17318 21.1692 3.05005C20.3505 2.92692 19.5137 3.03203 18.7509 3.35383C17.988 3.67563 17.3288 4.20163 16.8456 4.87396C16.3625 5.54628 16.0742 6.33886 16.0125 7.16447C15.9507 7.99008 16.118 8.81672 16.4958 9.55342C16.8735 10.2901 17.4472 10.9083 18.1537 11.34C18.8602 11.7716 19.6721 12 20.5 12ZM28 10.5C28 10.9945 27.8534 11.4778 27.5787 11.8889C27.304 12.3001 26.9135 12.6205 26.4567 12.8097C25.9999 12.9989 25.4972 13.0484 25.0123 12.952C24.5273 12.8555 24.0819 12.6174 23.7322 12.2678C23.3826 11.9181 23.1445 11.4727 23.048 10.9877C22.9516 10.5028 23.0011 10.0001 23.1903 9.54329C23.3795 9.08648 23.7 8.69603 24.1111 8.42133C24.5222 8.14662 25.0055 8 25.5 8C26.163 8 26.7989 8.26339 27.2678 8.73223C27.7366 9.20108 28 9.83696 28 10.5ZM20.5 5C21.0454 5.00027 21.5757 5.17888 22.0101 5.5086C22.4446 5.83832 22.7593 6.30105 22.9062 6.82625C22.3941 7.18662 21.9628 7.64992 21.6399 8.18652C21.3171 8.72312 21.1097 9.3212 21.0312 9.9425C20.8567 9.9802 20.6786 9.99948 20.5 10C19.837 10 19.2011 9.73661 18.7322 9.26777C18.2634 8.79893 18 8.16304 18 7.5C18 6.83696 18.2634 6.20108 18.7322 5.73223C19.2011 5.26339 19.837 5 20.5 5Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Tips</span>
+                <span class="card-desc">You can schedule or record tip payments for your employees.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Severance (extra) -->
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M24.5351 14.5351L14.5351 24.5351C13.5921 25.4459 12.3291 25.9498 11.0181 25.9385C9.70709 25.9271 8.45303 25.4012 7.52599 24.4742C6.59895 23.5471 6.0731 22.2931 6.06171 20.9821C6.05032 19.6711 6.55429 18.4081 7.46508 17.4651L17.4651 7.46508C18.4081 6.55429 19.6711 6.05032 20.9821 6.06171C22.2931 6.0731 23.5471 6.59895 24.4742 7.52599C25.4012 8.45303 25.9271 9.70709 25.9385 11.0181C25.9498 12.3291 25.4459 13.5921 24.5351 14.5351Z" fill="#0070D4"/>
+<path d="M23.8288 8.17125C23.0799 7.42258 22.0648 7.00138 21.0059 6.99997C19.947 6.99857 18.9308 7.41707 18.18 8.16375L16.7237 9.69C16.5375 9.86408 16.2918 9.96045 16.0369 9.95942C15.7819 9.95839 15.537 9.86003 15.3522 9.68446C15.1674 9.50888 15.0566 9.26934 15.0425 9.0148C15.0283 8.76026 15.112 8.50994 15.2762 8.315L16.7412 6.77875C16.7463 6.77302 16.7518 6.7676 16.7575 6.7625C17.8858 5.65242 19.4071 5.03316 20.9899 5.0396C22.5727 5.04605 24.0889 5.67768 25.2081 6.79691C26.3273 7.91614 26.959 9.4323 26.9654 11.0151C26.9718 12.5979 26.3526 14.1192 25.2425 15.2475C25.2374 15.2532 25.232 15.2587 25.2262 15.2638L23.69 16.7288C23.4951 16.893 23.2447 16.9767 22.9902 16.9625C22.7357 16.9484 22.4961 16.8376 22.3205 16.6528C22.145 16.468 22.0466 16.2231 22.0456 15.9681C22.0446 15.7132 22.1409 15.4675 22.315 15.2812L23.8412 13.825C24.5888 13.0733 25.0074 12.0556 25.005 10.9955C25.0027 9.93543 24.5796 8.91961 23.8288 8.17125ZM15.2762 22.31L13.82 23.8363C13.0662 24.5683 12.0547 24.9744 11.004 24.9667C9.95327 24.959 8.94777 24.5382 8.20479 23.7952C7.4618 23.0522 7.041 22.0467 7.03332 20.996C7.02564 19.9453 7.4317 18.9338 8.16375 18.18L9.69 16.7237C9.86408 16.5375 9.96045 16.2918 9.95942 16.0369C9.95839 15.7819 9.86003 15.537 9.68446 15.3522C9.50888 15.1674 9.26934 15.0566 9.0148 15.0425C8.76026 15.0283 8.50994 15.112 8.315 15.2762L6.77375 16.7412C6.76802 16.7463 6.7626 16.7518 6.7575 16.7575C5.64742 17.8858 5.02816 19.4071 5.0346 20.9899C5.04105 22.5727 5.67268 24.0889 6.79191 25.2081C7.91114 26.3273 9.4273 26.959 11.0101 26.9654C12.5929 26.9718 14.1142 26.3526 15.2425 25.2425C15.2482 25.2374 15.2537 25.232 15.2587 25.2262L16.7237 23.69C16.8233 23.5969 16.9029 23.4844 16.9574 23.3595C17.0119 23.2346 17.0404 23.0998 17.0409 22.9635C17.0415 22.8271 17.0141 22.6921 16.9606 22.5668C16.9071 22.4414 16.8285 22.3283 16.7296 22.2344C16.6308 22.1405 16.5138 22.0678 16.3858 22.0208C16.2579 21.9738 16.1217 21.9534 15.9855 21.961C15.8494 21.9685 15.7163 22.0038 15.5943 22.0647C15.4723 22.1256 15.3641 22.2108 15.2762 22.315V22.31ZM26 19H23C22.7348 19 22.4804 19.1054 22.2929 19.2929C22.1054 19.4804 22 19.7348 22 20C22 20.2652 22.1054 20.5196 22.2929 20.7071C22.4804 20.8946 22.7348 21 23 21H26C26.2652 21 26.5196 20.8946 26.7071 20.7071C26.8946 20.5196 27 20.2652 27 20C27 19.7348 26.8946 19.4804 26.7071 19.2929C26.5196 19.1054 26.2652 19 26 19ZM6 13H9C9.26522 13 9.51957 12.8946 9.70711 12.7071C9.89464 12.5196 10 12.2652 10 12C10 11.7348 9.89464 11.4804 9.70711 11.2929C9.51957 11.1054 9.26522 11 9 11H6C5.73478 11 5.48043 11.1054 5.29289 11.2929C5.10536 11.4804 5 11.7348 5 12C5 12.2652 5.10536 12.5196 5.29289 12.7071C5.48043 12.8946 5.73478 13 6 13ZM20 22C19.7348 22 19.4804 22.1054 19.2929 22.2929C19.1054 22.4804 19 22.7348 19 23V26C19 26.2652 19.1054 26.5196 19.2929 26.7071C19.4804 26.8946 19.7348 27 20 27C20.2652 27 20.5196 26.8946 20.7071 26.7071C20.8946 26.5196 21 26.2652 21 26V23C21 22.7348 20.8946 22.4804 20.7071 22.2929C20.5196 22.1054 20.2652 22 20 22ZM12 10C12.2652 10 12.5196 9.89464 12.7071 9.70711C12.8946 9.51957 13 9.26522 13 9V6C13 5.73478 12.8946 5.48043 12.7071 5.29289C12.5196 5.10536 12.2652 5 12 5C11.7348 5 11.4804 5.10536 11.2929 5.29289C11.1054 5.48043 11 5.73478 11 6V9C11 9.26522 11.1054 9.51957 11.2929 9.70711C11.4804 9.89464 11.7348 10 12 10Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Severance</span>
+                <span class="card-desc">You can pay a terminated employee supplemental, taxable pay.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <!-- Other supplemental pay (extra) -->
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip-other)">
+<path opacity="0.2" d="M16 28C22.6274 28 28 22.6274 28 16C28 9.37258 22.6274 4 16 4C9.37258 4 4 9.37258 4 16C4 22.6274 9.37258 28 16 28Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M16 5C9.92487 5 5 9.92487 5 16C5 22.0751 9.92487 27 16 27C22.0751 27 27 22.0751 27 16C27 9.92487 22.0751 5 16 5ZM3 16C3 8.8203 8.8203 3 16 3C23.1797 3 29 8.8203 29 16C29 23.1797 23.1797 29 16 29C8.8203 29 3 23.1797 3 16ZM16 8C16.5523 8 17 8.44772 17 9V10H19C19.5523 10 20 10.4477 20 11C20 11.5523 19.5523 12 19 12H14.5C14.1022 12 13.7206 12.158 13.4393 12.4393C13.158 12.7206 13 13.1022 13 13.5C13 13.8978 13.158 14.2794 13.4393 14.5607C13.7206 14.842 14.1022 15 14.5 15H17.5C18.4283 15 19.3185 15.3688 19.9749 16.0251C20.6313 16.6815 21 17.5717 21 18.5C21 19.4283 20.6313 20.3185 19.9749 20.9749C19.3185 21.6313 18.4283 22 17.5 22H17V23C17 23.5523 16.5523 24 16 24C15.4477 24 15 23.5523 15 23V22H13C12.4477 22 12 21.5523 12 21C12 20.4477 12.4477 20 13 20H17.5C17.8978 20 18.2794 19.842 18.5607 19.5607C18.842 19.2794 19 18.8978 19 18.5C19 18.1022 18.842 17.7206 18.5607 17.4393C18.2794 17.158 17.8978 17 17.5 17H14.5C13.5717 17 12.6815 16.6313 12.0251 15.9749C11.3687 15.3185 11 14.4283 11 13.5C11 12.5717 11.3687 11.6815 12.0251 11.0251C12.6815 10.3687 13.5717 10 14.5 10H15V9C15 8.44772 15.4477 8 16 8Z" fill="#0070D4"/>
+</g>
+<defs><clipPath id="clip-other"><rect width="32" height="32" fill="white"/></clipPath></defs>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Other supplemental pay</span>
+                <span class="card-desc">Use this for any other supplemental payments that aren't listed above.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip-misc)">
+<path opacity="0.2" d="M16 28C22.6274 28 28 22.6274 28 16C28 9.37258 22.6274 4 16 4C9.37258 4 4 9.37258 4 16C4 22.6274 9.37258 28 16 28Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M16 5C9.92487 5 5 9.92487 5 16C5 22.0751 9.92487 27 16 27C22.0751 27 27 22.0751 27 16C27 9.92487 22.0751 5 16 5ZM3 16C3 8.8203 8.8203 3 16 3C23.1797 3 29 8.8203 29 16C29 23.1797 23.1797 29 16 29C8.8203 29 3 23.1797 3 16Z" fill="#0070D4"/>
+<path d="M16 24C16.8284 24 17.5 23.3284 17.5 22.5C17.5 21.6716 16.8284 21 16 21C15.1716 21 14.5 21.6716 14.5 22.5C14.5 23.3284 15.1716 24 16 24Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M14.2779 9.34254C15.1002 9.00195 16.005 8.91283 16.8779 9.08647C17.7508 9.2601 18.5526 9.68868 19.182 10.318C19.8113 10.9474 20.2399 11.7492 20.4135 12.6221C20.5872 13.495 20.4981 14.3998 20.1575 15.2221C19.8169 16.0443 19.2401 16.7471 18.5001 17.2416C18.0413 17.5482 17.5325 17.7661 17 17.8875V18C17 18.5523 16.5523 19 16 19C15.4477 19 15 18.5523 15 18V17C15 16.7348 15.1054 16.4804 15.2929 16.2929C15.4804 16.1054 15.7348 16 16 16C16.4945 16 16.9778 15.8534 17.3889 15.5787C17.8 15.304 18.1205 14.9135 18.3097 14.4567C18.4989 13.9999 18.5484 13.4972 18.452 13.0123C18.3555 12.5273 18.1174 12.0819 17.7678 11.7322C17.4181 11.3826 16.9727 11.1445 16.4877 11.048C16.0028 10.9516 15.5001 11.0011 15.0433 11.1903C14.5865 11.3795 14.196 11.7 13.9213 12.1111C13.6466 12.5222 13.5 13.0055 13.5 13.5C13.5 14.0523 13.0523 14.5 12.5 14.5C11.9477 14.5 11.5 14.0523 11.5 13.5C11.5 12.61 11.7639 11.74 12.2584 10.9999C12.7529 10.2599 13.4557 9.68314 14.2779 9.34254Z" fill="#0070D4"/>
+</g>
+<defs><clipPath id="clip-misc"><rect width="32" height="32" fill="white"/></clipPath></defs>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Misc. non-taxable</span>
+                <span class="card-desc">You can use this for non-compensation payments that aren't taxable.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M28 7V26L24 24L20 26L16 24L12 26L8 24L4 26V7C4 6.73478 4.10536 6.48043 4.29289 6.29289C4.48043 6.10536 4.73478 6 5 6H27C27.2652 6 27.5196 6.10536 27.7071 6.29289C27.8946 6.48043 28 6.73478 28 7Z" fill="#0070D4"/>
+<path d="M9 13C9 12.7348 9.10536 12.4804 9.29289 12.2929C9.48043 12.1054 9.73478 12 10 12H22C22.2652 12 22.5196 12.1054 22.7071 12.2929C22.8946 12.4804 23 12.7348 23 13C23 13.2652 22.8946 13.5196 22.7071 13.7071C22.5196 13.8946 22.2652 14 22 14H10C9.73478 14 9.48043 13.8946 9.29289 13.7071C9.10536 13.5196 9 13.2652 9 13ZM10 18H22C22.2652 18 22.5196 17.8946 22.7071 17.7071C22.8946 17.5196 23 17.2652 23 17C23 16.7348 22.8946 16.4804 22.7071 16.2929C22.5196 16.1054 22.2652 16 22 16H10C9.73478 16 9.48043 16.1054 9.29289 16.2929C9.10536 16.4804 9 16.7348 9 17C9 17.2652 9.10536 17.5196 9.29289 17.7071C9.48043 17.8946 9.73478 18 10 18ZM29 7V26C28.9999 26.1704 28.9563 26.338 28.8732 26.4869C28.7901 26.6357 28.6704 26.7608 28.5254 26.8503C28.3803 26.9399 28.2148 26.9909 28.0446 26.9985C27.8743 27.0061 27.7049 26.97 27.5525 26.8937L24 25.1175L20.4475 26.8937C20.3086 26.9633 20.1554 26.9995 20 26.9995C19.8446 26.9995 19.6914 26.9633 19.5525 26.8937L16 25.1175L12.4475 26.8937C12.3086 26.9633 12.1554 26.9995 12 26.9995C11.8446 26.9995 11.6914 26.9633 11.5525 26.8937L8 25.1175L4.4475 26.8937C4.29508 26.97 4.12569 27.0061 3.95543 26.9985C3.78516 26.9909 3.61965 26.9399 3.47463 26.8503C3.32961 26.7608 3.20988 26.6357 3.12681 26.4869C3.04374 26.338 3.00009 26.1704 3 26V7C3 6.46957 3.21071 5.96086 3.58579 5.58579C3.96086 5.21071 4.46957 5 5 5H27C27.5304 5 28.0391 5.21071 28.4142 5.58579C28.7893 5.96086 29 6.46957 29 7ZM27 7H5V24.3825L7.5525 23.105C7.69143 23.0355 7.84465 22.9993 8 22.9993C8.15535 22.9993 8.30857 23.0355 8.4475 23.105L12 24.8825L15.5525 23.105C15.6914 23.0355 15.8446 22.9993 16 22.9993C16.1554 22.9993 16.3086 23.0355 16.4475 23.105L20 24.8825L23.5525 23.105C23.6914 23.0355 23.8446 22.9993 24 22.9993C24.1554 22.9993 24.3086 23.0355 24.4475 23.105L27 24.3825V7Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Expense reimbursement</span>
+                <span class="card-desc">Pay back employees or contractors for business expenses they've paid for.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M30 14V18C30 18.5304 29.7893 19.0391 29.4142 19.4142C29.0391 19.7893 28.5304 20 28 20H27L24.7375 26.3363C24.6681 26.5306 24.5403 26.6988 24.3715 26.8176C24.2028 26.9364 24.0014 27.0002 23.795 27H22.205C21.9986 27.0002 21.7972 26.9364 21.6285 26.8176C21.4597 26.6988 21.3319 26.5306 21.2625 26.3363L20.7863 25H12.2138L11.7375 26.3363C11.6681 26.5306 11.5403 26.6988 11.3715 26.8176C11.2028 26.9364 11.0014 27.0002 10.795 27H9.20501C8.99862 27.0002 8.79723 26.9364 8.62849 26.8176C8.45975 26.6988 8.3319 26.5306 8.26251 26.3363L6.62501 21.75C4.93419 19.909 3.99722 17.4996 4.00001 15C4.00001 12.3478 5.05357 9.8043 6.92894 7.92893C8.8043 6.05357 11.3478 5 14 5H18C19.9514 4.99944 21.8603 5.56981 23.4915 6.64083C25.1226 7.71185 26.4048 9.23671 27.18 11.0275C27.3171 11.3454 27.4381 11.6699 27.5425 12H28C28.5304 12 29.0391 12.2107 29.4142 12.5858C29.7893 12.9609 30 13.4696 30 14Z" fill="#0070D4"/>
+<path d="M24 14.5C24 14.7967 23.912 15.0867 23.7472 15.3334C23.5824 15.58 23.3481 15.7723 23.074 15.8858C22.7999 15.9994 22.4983 16.0291 22.2074 15.9712C21.9164 15.9133 21.6491 15.7704 21.4393 15.5607C21.2296 15.3509 21.0867 15.0836 21.0288 14.7926C20.9709 14.5017 21.0007 14.2001 21.1142 13.926C21.2277 13.6519 21.42 13.4176 21.6666 13.2528C21.9133 13.088 22.2033 13 22.5 13C22.8978 13 23.2794 13.158 23.5607 13.4393C23.842 13.7206 24 14.1022 24 14.5ZM19 8H14C13.7348 8 13.4804 8.10536 13.2929 8.29289C13.1054 8.48043 13 8.73478 13 9C13 9.26522 13.1054 9.51957 13.2929 9.70711C13.4804 9.89464 13.7348 10 14 10H19C19.2652 10 19.5196 9.89464 19.7071 9.70711C19.8946 9.51957 20 9.26522 20 9C20 8.73478 19.8946 8.48043 19.7071 8.29289C19.5196 8.10536 19.2652 8 19 8ZM31 14V18C31 18.7956 30.6839 19.5587 30.1213 20.1213C29.5587 20.6839 28.7956 21 28 21H27.705L25.6787 26.6725C25.54 27.061 25.2845 27.3972 24.9473 27.6348C24.6101 27.8725 24.2076 28 23.795 28H22.205C21.7924 28 21.3899 27.8725 21.0527 27.6348C20.7155 27.3972 20.46 27.061 20.3213 26.6725L20.0812 26H12.9187L12.6788 26.6725C12.54 27.061 12.2845 27.3972 11.9473 27.6348C11.6101 27.8725 11.2076 28 10.795 28H9.205C8.79243 28 8.38995 27.8725 8.05271 27.6348C7.71547 27.3972 7.45998 27.061 7.32125 26.6725L5.75 22.2775C4.25523 20.5857 3.31926 18.4737 3.07 16.23C2.74728 16.3995 2.47702 16.654 2.28844 16.9659C2.09985 17.2779 2.00011 17.6355 2 18C2 18.2652 1.89464 18.5196 1.70711 18.7071C1.51957 18.8946 1.26522 19 1 19C0.734784 19 0.48043 18.8946 0.292893 18.7071C0.105357 18.5196 0 18.2652 0 18C0.00152797 17.1082 0.301028 16.2425 0.850918 15.5404C1.40081 14.8383 2.16955 14.3401 3.035 14.125C3.2584 11.3692 4.51003 8.79811 6.54135 6.9224C8.57268 5.04669 11.2351 4.00351 14 4H27C27.2652 4 27.5196 4.10536 27.7071 4.29289C27.8946 4.48043 28 4.73478 28 5C28 5.26522 27.8946 5.51957 27.7071 5.70711C27.5196 5.89464 27.2652 6 27 6H24.3263C25.9858 7.16437 27.291 8.76504 28.0975 10.625C28.1512 10.75 28.2038 10.875 28.2537 11C29.0046 11.0637 29.704 11.4077 30.2129 11.9636C30.7217 12.5194 31.0027 13.2464 31 14ZM29 14C29 13.7348 28.8946 13.4804 28.7071 13.2929C28.5196 13.1054 28.2652 13 28 13H27.5425C27.3295 13.0002 27.122 12.9324 26.9503 12.8065C26.7785 12.6806 26.6514 12.5032 26.5875 12.3C26.0146 10.4717 24.8723 8.87428 23.3275 7.74093C21.7826 6.60759 19.916 5.99761 18 6H14C12.2534 5.99991 10.5445 6.50804 9.08171 7.46243C7.61891 8.41682 6.46543 9.77622 5.76191 11.3749C5.05839 12.9735 4.83524 14.7423 5.11967 16.4656C5.4041 18.1889 6.18382 19.7922 7.36375 21.08C7.45398 21.1781 7.52368 21.2933 7.56875 21.4188L9.205 26H10.795L11.2725 24.6637C11.3418 24.4696 11.4695 24.3016 11.638 24.1828C11.8065 24.0639 12.0076 24.0001 12.2137 24H20.7862C20.9924 24.0001 21.1935 24.0639 21.362 24.1828C21.5305 24.3016 21.6582 24.4696 21.7275 24.6637L22.205 26H23.795L26.0588 19.6637C26.1281 19.4696 26.2557 19.3016 26.4242 19.1828C26.5927 19.0639 26.7938 19.0001 27 19H28C28.2652 19 28.5196 18.8946 28.7071 18.7071C28.8946 18.5196 29 18.2652 29 18V14Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Owner's draw</span>
+                <span class="card-desc">You can distribute funds from an owner's equity account.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path opacity="0.2" d="M27.7075 11.2927L24 15.0002L17 8.00016L20.7075 4.29266C20.895 4.10527 21.1493 4 21.4144 4C21.6795 4 21.9337 4.10527 22.1213 4.29266L27.7075 9.87516C27.8009 9.96808 27.8749 10.0785 27.9255 10.2002C27.976 10.3218 28.002 10.4522 28.002 10.5839C28.002 10.7156 27.976 10.846 27.9255 10.9677C27.8749 11.0893 27.8009 11.1997 27.7075 11.2927Z" fill="#0070D4"/>
+<path d="M28.415 9.17095L22.8288 3.58595C22.643 3.40018 22.4225 3.25282 22.1799 3.15228C21.9372 3.05175 21.6771 3 21.4144 3C21.1517 3 20.8916 3.05175 20.6489 3.15228C20.4062 3.25282 20.1857 3.40018 20 3.58595L4.58626 18.9997C4.39973 19.1847 4.25185 19.405 4.15121 19.6477C4.05057 19.8904 3.99917 20.1507 4.00001 20.4134V25.9997C4.00001 26.5301 4.21072 27.0388 4.5858 27.4139C4.96087 27.789 5.46958 27.9997 6.00001 27.9997H27C27.2652 27.9997 27.5196 27.8943 27.7071 27.7068C27.8947 27.5193 28 27.2649 28 26.9997C28 26.7345 27.8947 26.4801 27.7071 26.2926C27.5196 26.1051 27.2652 25.9997 27 25.9997H14.415L28.415 11.9997C28.6008 11.814 28.7481 11.5935 28.8487 11.3508C28.9492 11.1081 29.001 10.848 29.001 10.5853C29.001 10.3226 28.9492 10.0625 28.8487 9.81985C28.7481 9.57717 28.6008 9.35667 28.415 9.17095ZM6.00001 20.4134L17 9.41345L22.5863 14.9997L11.5863 25.9997H6.00001V20.4134ZM24 13.5859L18.415 7.9997L21.415 4.9997L27 10.5859L24 13.5859Z" fill="#0070D4"/>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Late reported payments</span>
+                <span class="card-desc">You can record payments made to employees outside of Justworks, like off-cycle salary or tips.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body">
+              <svg class="card-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip-fringe)">
+<g opacity="0.2">
+<path opacity="0.2" d="M12.8 24.8002L7.19996 19.2002L4.73746 25.9877C4.66938 26.1658 4.65431 26.3598 4.69409 26.5463C4.73386 26.7328 4.82677 26.9037 4.9616 27.0386C5.09642 27.1734 5.2674 27.2663 5.45387 27.3061C5.64035 27.3458 5.83435 27.3308 6.01246 27.2627L12.8 24.8002Z" fill="#0070D4"/>
+</g>
+<path opacity="0.2" d="M9.6001 12.5998L19.4001 22.3998L24.5251 20.5373C24.6835 20.4798 24.8248 20.3831 24.9358 20.2563C25.0469 20.1295 25.1241 19.9767 25.1602 19.8121C25.1964 19.6474 25.1904 19.4763 25.1427 19.3147C25.095 19.153 25.0073 19.006 24.8876 18.8873L13.1126 7.11235C12.9939 6.99265 12.8469 6.9049 12.6853 6.85723C12.5236 6.80956 12.3525 6.80353 12.1879 6.8397C12.0233 6.87587 11.8704 6.95306 11.7436 7.0641C11.6168 7.17514 11.5202 7.31643 11.4626 7.47485L9.6001 12.5998Z" fill="#0070D4"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M18 1C18.5522 1 19 1.44772 19 2V5C19 5.55228 18.5522 6 18 6C17.4477 6 17 5.55228 17 5V2C17 1.44772 17.4477 1 18 1ZM27 2C27.5522 2 28 2.44772 28 3H27C28 3 28 3.0005 28 3.00101L27.9999 3.00448L27.9999 3.01011C27.9999 3.01272 27.9999 3.01563 27.9998 3.01884C27.9998 3.02071 27.9998 3.02267 27.9997 3.02473C27.9996 3.03595 27.9992 3.05011 27.9987 3.06701C27.9975 3.10077 27.9954 3.14568 27.9916 3.20015C27.9838 3.30877 27.9688 3.45741 27.9395 3.63315C27.8817 3.97989 27.7642 4.4575 27.5194 4.94721C27.2726 5.44084 26.8866 5.96489 26.289 6.3633C25.6852 6.76588 24.9249 7 24 7C23.4249 7 23.0602 7.14088 22.8203 7.3008C22.5741 7.46489 22.3976 7.69084 22.2694 7.94721C22.1392 8.2075 22.0692 8.47989 22.0332 8.69565C22.0156 8.80116 22.0072 8.88689 22.0033 8.94234C22.0013 8.96989 22.0005 8.98944 22.0001 8.99962C22 9.0031 22 9.00546 21.9999 9.00664C21.9964 9.55587 21.55 10 21 10C20.4477 10 20 9.55228 20 9H21C20 9 20 8.9995 20 8.99899L20 8.99552L20 8.98989C20 8.98749 20 8.98483 20.0001 8.98193C20.0001 8.97984 20.0001 8.97762 20.0002 8.97527C20.0004 8.96405 20.0007 8.94989 20.0012 8.93299C20.0024 8.89923 20.0045 8.85432 20.0084 8.79985C20.0161 8.69123 20.0311 8.54259 20.0604 8.36685C20.1182 8.02011 20.2357 7.5425 20.4805 7.05279C20.7273 6.55916 21.1133 6.03511 21.7109 5.6367C22.3148 5.23412 23.075 5 24 5C24.575 5 24.9398 4.85912 25.1796 4.6992C25.4258 4.53511 25.6023 4.30916 25.7305 4.05279C25.8607 3.7925 25.9307 3.52011 25.9667 3.30435C25.9843 3.19884 25.9927 3.11311 25.9966 3.05766C25.9986 3.03011 25.9994 3.01056 25.9998 3.00038C25.9999 2.9969 26 2.99454 26 2.99336C26.0036 2.44413 26.4499 2 27 2ZM11.9732 5.86315C12.3024 5.79081 12.6446 5.80287 12.9679 5.89821C13.2904 5.99329 13.5838 6.16815 13.8208 6.4066C13.8214 6.40722 13.822 6.40783 13.8226 6.40844L25.5915 18.1774C25.592 18.1779 25.5925 18.1784 25.593 18.1789C25.8317 18.416 26.0066 18.7094 26.1017 19.032C26.1971 19.3554 26.2091 19.6975 26.1368 20.0268C26.0645 20.356 25.9101 20.6617 25.688 20.9153C25.4659 21.1689 25.1833 21.3622 24.8665 21.4774L19.7825 23.3242C19.7557 23.3353 19.7285 23.3452 19.701 23.3538L13.2162 25.7095C13.1673 25.7319 13.1169 25.7501 13.0657 25.7642L6.36022 28.2001C6.00431 28.3341 5.61735 28.3632 5.24527 28.2839C4.86996 28.2038 4.52584 28.0168 4.25449 27.7455C3.98313 27.4741 3.79614 27.13 3.71609 26.7547C3.63672 26.3826 3.66584 25.9956 3.79989 25.6396L6.23572 18.9343C6.2498 18.883 6.26803 18.8327 6.29042 18.7837L8.64615 12.2989C8.65479 12.2714 8.66465 12.2443 8.67572 12.2175L10.5226 7.13356C10.6377 6.81674 10.8311 6.53403 11.0847 6.31195C11.3383 6.08986 11.6439 5.93548 11.9732 5.86315ZM10.0041 14.4184L8.35957 18.9454L13.0546 23.6404L17.5816 21.9959L10.0041 14.4184ZM19.6563 21.2422L10.7578 12.3436L12.4023 7.81656L12.4054 7.81961L24.1804 19.5946L24.1834 19.5976L19.6563 21.2422ZM12.4021 7.81635L12.4023 7.81656L12.4021 7.81635ZM10.9798 24.3941L7.60588 21.0201L5.68098 26.319L10.9798 24.3941ZM30.9486 8.68377C31.1233 9.20772 30.8401 9.77404 30.3162 9.94868L27.3162 10.9487C26.7922 11.1233 26.2259 10.8402 26.0513 10.3162C25.8766 9.79228 26.1598 9.22596 26.6837 9.05132L29.6837 8.05132C30.2077 7.87667 30.774 8.15983 30.9486 8.68377ZM26.2929 14.7071C25.9023 14.3166 25.9023 13.6834 26.2929 13.2929C26.6834 12.9024 27.3165 12.9024 27.7071 13.2929L29.7071 15.2929C30.0976 15.6834 30.0976 16.3166 29.7071 16.7071C29.3165 17.0976 28.6834 17.0976 28.2929 16.7071L26.2929 14.7071Z" fill="#0070D4"/>
+</g>
+<defs><clipPath id="clip-fringe"><rect width="32" height="32" fill="white"/></clipPath></defs>
+</svg>
+              <div class="card-text">
+                <span class="card-title">Fringe benefits</span>
+                <span class="card-desc">You can record additional benefits or compensation provided outside of Justworks.</span>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button class="star-btn" aria-label="Favorite"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── Section expand/collapse ──────────────────────────────────────────────
+  function toggleSection(event, sectionId, toggleEl) {
+    event.preventDefault();
+    const section = document.getElementById(sectionId);
+    const isExpanded = section.classList.contains('expanded');
+    section.classList.toggle('expanded', !isExpanded);
+    toggleEl.textContent = isExpanded ? 'See more' : 'Show less';
+  }
+
+  // ── Payment type registry ────────────────────────────────────────────────
+  const PAYMENT_TYPES = {
+    'Contractor pay':         { id: 'contractor-pay',        icon: 'Downloads/duoone/Contractor%20payments.svg' },
+    'Vendor payment':         { id: 'vendor-payment',        icon: 'Downloads/duoone/Vendor%20payments.svg' },
+    'Retroactive pay':        { id: 'retroactive-pay',       icon: 'Downloads/duoone/Retroactive%20Pay.svg' },
+    'Off-cycle salary':       { id: 'off-cycle-salary',      icon: 'Downloads/duoone/Off-cycle%20salary.svg' },
+    'Bonus':                  { id: 'bonus',                 icon: 'Downloads/duoone/Commission.svg' },
+    'Commission':             { id: 'commission',            icon: 'Downloads/duoone/Commission.svg' },
+    'Tips':                   { id: 'tips',                  icon: 'Downloads/duoone/Tips.svg' },
+    'Severance':              { id: 'severance',             icon: 'Downloads/duoone/Severance.svg' },
+    'Other supplemental pay': { id: 'other-supplemental',   icon: 'Downloads/duoone/Other%20supplemental%20pay.svg' },
+    'Misc. non-taxable':      { id: 'misc-non-taxable',      icon: 'Downloads/duoone/Misc.%20non-taxable.svg' },
+    'Expense reimbursement':  { id: 'expense-reimbursement', icon: 'Downloads/duoone/Expense%20reimbursements.svg' },
+    "Owner's draw":           { id: 'owners-draw',           icon: 'Downloads/duoone/Owner%27s%20draw.svg' },
+    'Late reported payments': { id: 'late-reported',         icon: 'Downloads/duoone/Late%20reported%20payments.svg' },
+    'Fringe benefits':        { id: 'fringe-benefits',       icon: 'Downloads/duoone/Fringe%20benefits.svg' },
+  };
+
+  // ── Star SVG markup ──────────────────────────────────────────────────────
+  const STAR_EMPTY  = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+  const STAR_FILLED = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L12.09 7.76L17.5 8.27L13.55 11.74L14.82 17L10 14.27L5.18 17L6.45 11.74L2.5 8.27L7.91 7.76L10 2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="currentColor"/></svg>`;
+
+  // ── Empty-state: hide Favorites + section header when no chips ───────────
+  function updateEmptyState() {
+    const hasChips = document.querySelector('.favorites-row .fav-chip') !== null;
+    document.querySelector('.favorites-section').style.display = hasChips ? '' : 'none';
+    document.querySelector('.content-inner').classList.toggle('no-favorites', !hasChips);
+  }
+
+  // ── Chip helpers ─────────────────────────────────────────────────────────
+  const REMOVE_BTN_HTML = `<div class="chip-remove" aria-label="Remove">&#x2715;</div>`;
+
+  function addChip(id, label, icon) {
+    const row = document.querySelector('.favorites-row');
+    if (row.querySelectorAll('.fav-chip').length >= 5) return;
+    const btn = document.createElement('div');
+    btn.className = 'fav-chip';
+    btn.role = 'button';
+    btn.tabIndex = 0;
+    btn.dataset.paymentId = id;
+    btn.innerHTML = `${REMOVE_BTN_HTML}<span class="fav-chip-label">${label}</span><img src="${icon}" width="32" height="32" alt="">`;
+    btn.querySelector('.chip-remove').addEventListener('click', (e) => { e.stopPropagation(); removeChip(id); });
+    document.querySelector('.favorites-row').appendChild(btn);
+    updateEmptyState();
+  }
+
+  function removeChip(id) {
+    document.querySelector(`.fav-chip[data-payment-id="${id}"]`)?.remove();
+    updateEmptyState();
+    const card = document.querySelector(`.card[data-payment-id="${id}"]`);
+    if (card) {
+      card.classList.remove('favorited');
+      const btn = card.querySelector('.star-btn');
+      btn.classList.remove('starred');
+      btn.innerHTML = STAR_EMPTY;
+    }
+  }
+
+  // ── Card star toggle ─────────────────────────────────────────────────────
+  function toggleFavorite(card) {
+    const id = card.dataset.paymentId;
+    const starBtn = card.querySelector('.star-btn');
+    const isFavorited = card.classList.contains('favorited');
+
+    if (isFavorited) {
+      removeChip(id);
+    } else {
+      card.classList.add('favorited');
+      starBtn.classList.add('starred');
+      starBtn.innerHTML = STAR_FILLED;
+      addChip(id, card.querySelector('.card-title').textContent.trim(), card.dataset.icon);
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    // Assign data attributes to every card from its title
+    document.querySelectorAll('.card').forEach(card => {
+      const title = card.querySelector('.card-title')?.textContent.trim();
+      const meta = PAYMENT_TYPES[title];
+      if (!meta) return;
+      card.dataset.paymentId = meta.id;
+      card.dataset.icon = meta.icon;
+      card.querySelector('.star-btn')?.addEventListener('click', () => toggleFavorite(card));
+
+      // Inject tags container into card footer
+      const footer = card.querySelector('.card-footer');
+      if (footer && !footer.querySelector('.card-tags')) {
+        const tagsDiv = document.createElement('div');
+        tagsDiv.className = 'card-tags';
+        footer.insertBefore(tagsDiv, footer.firstChild);
+      }
+    });
+
+    // ── Sort ─────────────────────────────────────────────────────────────────
+    const sortBtn  = document.getElementById('sort-btn');
+    const sortMenu = document.getElementById('sort-menu');
+    const cardsRow = document.querySelector('.cards-row');
+
+    // Capture original DOM order after init
+    let originalCardOrder = [];
+    setTimeout(() => {
+      originalCardOrder = Array.from(cardsRow.querySelectorAll('.card'));
+    }, 0);
+
+    sortBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sortMenu.hidden = !sortMenu.hidden;
+    });
+
+    document.addEventListener('click', () => { sortMenu.hidden = true; });
+
+    const SORT_LABELS = { az: 'A-Z', za: 'Z-A', most: 'most used', least: 'least used' };
+
+    document.querySelectorAll('.sort-menu-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const sort = item.dataset.sort;
+        sortMenu.hidden = true;
+
+        // Update active state
+        document.querySelectorAll('.sort-menu-item').forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        // Update button label
+        sortBtn.innerHTML = `Sort: <strong>${SORT_LABELS[sort]}</strong> <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5L7 9L11 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+        const cards = Array.from(cardsRow.querySelectorAll('.card'));
+
+        if (sort === 'az') {
+          cards.sort((a, b) =>
+            (a.querySelector('.card-title')?.textContent.trim() ?? '')
+            .localeCompare(b.querySelector('.card-title')?.textContent.trim() ?? ''));
+        } else if (sort === 'za') {
+          cards.sort((a, b) =>
+            (b.querySelector('.card-title')?.textContent.trim() ?? '')
+            .localeCompare(a.querySelector('.card-title')?.textContent.trim() ?? ''));
+        } else if (sort === 'most') {
+          cards.sort((a, b) => originalCardOrder.indexOf(b) - originalCardOrder.indexOf(a));
+        } else if (sort === 'least') {
+          cards.sort((a, b) => originalCardOrder.indexOf(a) - originalCardOrder.indexOf(b));
+        }
+
+        cards.forEach(card => cardsRow.appendChild(card));
+      });
+    });
+
+    // ── View switcher ────────────────────────────────────────────────────────
+    document.getElementById('btn-list-view').addEventListener('click', () => {
+      mainContent.classList.add('list-view');
+      document.getElementById('btn-list-view').classList.add('active');
+      document.getElementById('btn-grid-view').classList.remove('active');
+    });
+
+    document.getElementById('btn-grid-view').addEventListener('click', () => {
+      mainContent.classList.remove('list-view');
+      document.getElementById('btn-grid-view').classList.add('active');
+      document.getElementById('btn-list-view').classList.remove('active');
+    });
+
+    // ── Tag registry ─────────────────────────────────────────────────────────
+    const TAGS = {
+      'bonus': ['year-end bonus','performance','extra pay','holiday bonus','discretionary','signing bonus','incentive','spot bonus','one-time pay','quarterly bonus','annual bonus','retention bonus','referral bonus','profit sharing','Christmas bonus','end of year','Q4 bonus','merit bonus','milestone bonus','project completion','team bonus','company bonus','stock bonus','cash bonus','reward','recognition pay','exceeds expectations','high performer','promotion bonus','new hire bonus','attendance bonus','safety bonus','longevity bonus','anniversary bonus','winter bonus','summer bonus','fiscal year end','above and beyond','outstanding performance'],
+      'commission': ['sales commission','variable pay','performance-based','incentive pay','earned commission','sales pay','rep payment','commission draw','quota payout','revenue share','closed deal','sales rep','account executive','SDR pay','territory bonus','deal closed','new business','upsell','cross-sell','renewal commission','monthly commission','quarterly commission','tiered commission','accelerator','overachievement','spiff','MBO','kicker','residual commission','affiliate pay','broker commission','real estate commission','insurance commission','financial advisor','mortgage broker','car salesperson','recruiter fee','placement fee','finder\'s fee','partnership commission','channel partner','reseller','referral commission','ad revenue','licensing fee'],
+      'contractor-pay': ['1099 payment','freelancer pay','contractor','no EIN','non-employee','gig worker','consultant','contract work','self-employed','designer','developer','photographer','copywriter','agency','writer','editor','videographer','animator','illustrator','web developer','app developer','data analyst','researcher','translator','transcriptionist','social media','marketing consultant','PR consultant','HR consultant','IT contractor','security consultant','accountant','bookkeeper','lawyer','paralegal','architect','interior designer','event planner','caterer','DJ','musician','coach','trainer','tutor','therapist','stylist','makeup artist'],
+      'expense-reimbursement': ['reimburse','business expense','non-taxable','out-of-pocket','travel','receipt','mileage','dinner','biz dev','meal','tech reimbursement','hotel','flight','Uber','Lyft','parking','software','office supplies','client dinner','conference','phone bill','train','subway','taxi','rental car','gas','tolls','airbnb','baggage fee','wifi','coworking space','standing desk','monitor','keyboard','headphones','webcam','microphone','home office','internet bill','cell phone','tools','equipment','uniform','safety gear','continuing education','certification','professional development','books','subscriptions','Adobe','Slack','Zoom','AWS','Figma','Notion','Canva','LinkedIn Premium','team lunch','team dinner','offsite','retreat','client gift','flowers','thank you gift'],
+      'misc-non-taxable': ['non-taxable','non-compensation','tax-exempt','other payment','non-wage','non-reportable','excluded income','de minimis','not on W-2','untaxed','gift card','achievement award','safety award','length of service','holiday gift','employee award','small gift','low value item','under $25','occasional meal','coffee','snacks','birthday gift','work anniversary','milestone gift','plaque','trophy','flowers','recognition gift','wellness gift','book','company swag','t-shirt','hat','branded gear','team gift','raffle prize','lottery ticket','picnic','company party','holiday party','team event','celebration'],
+      'off-cycle-salary': ['missed payroll','manual paycheck','off-schedule','makeup pay','unscheduled','ad hoc payroll','emergency pay','pay correction','between payrolls','supplemental','forgot to run','new hire','late start','rehire','payroll gap','onboarding delay','system error','processing error','wrong amount','short pay','underpaid','payroll mistake','bank error','direct deposit failed','paper check','manual check','rush payment','same day pay','next day pay','employee complaint','payroll dispute','HR request','finance request','off cycle run','special run','one time run','salary advance','pay advance','advance request','immediate payment','urgent payment'],
+      'other-supplemental': ['supplemental','additional pay','custom payment','extra wages','other comp','catch-all pay','misc wages','nonstandard pay','one-off pay','hazard pay','on-call pay','shift differential','overtime correction','stipend','allowance','car allowance','housing allowance','meal allowance','per diem','clothing allowance','tool allowance','phone allowance','internet allowance','wellness stipend','education stipend','childcare stipend','fertility benefit','mental health','professional development','book allowance','equipment stipend','home office allowance','remote work stipend','co-working stipend','transportation allowance','fuel allowance','night shift','weekend differential','holiday pay','holiday premium','double time','special assignment','project pay','temporary increase','interim pay','acting pay','fill-in pay'],
+      'owners-draw': ['sole proprietor','LLC distribution','equity draw','partnership draw','owner payment','pay myself','owner salary','S-corp draw','member draw','profit withdrawal','small business','self-employed owner','founder pay','single member LLC','partnership payout','business owner','DBA','doing business as','sole prop','multi-member LLC','general partner','limited partner','managing member','managing partner','capital account','equity account','distribution','take money out','business profits','company profits','net income','retained earnings','pass-through income','pass-through entity','Schedule K-1','Form 1040','owner compensation','reasonable salary','shareholder distribution','dividend','return on investment','ROI','capital return'],
+      'retroactive-pay': ['back pay','retro raise','wage adjustment','past wages','pay correction','prior period','salary fix','underpayment','missed pay','owed wages','promotion adjustment','title change','reclassification','pay equity fix','union settlement','contract settlement','collective bargaining','FLSA violation','wage claim','labor dispute','audit finding','HR correction','salary review','comp review','pay band adjustment','market adjustment','equity adjustment','cost of living','COLA','annual increase','merit increase','step increase','range adjustment','grade change','job change','role change','responsibility change','effective date change','retroactive effective date','late approval','delayed offer letter','delayed promotion','payroll error','missed raise','forgotten increase','late review','performance review delay'],
+      'severance': ['terminated','severance pkg','layoff pay','separation pay','final payment','termination pay','exit package','fired employee','RIF','RIF payment','downsizing','restructuring','role eliminated','last paycheck','offboarding','laid off','let go','position eliminated','workforce reduction','company restructure','merger','acquisition','org change','department closure','plant closure','office closure','involuntary term','without cause','mutual separation','buyout','voluntary separation','early retirement','retirement package','garden leave','WARN Act','separation agreement','release of claims','non-disparagement','non-compete','final wages','PTO payout','accrued vacation','unused sick leave','cobra continuation','benefits extension','outplacement','career transition','severance negotiation','lump sum','weekly installments'],
+      'tips': ['tip reporting','gratuity','cash tips','tipped employee','record tips','tip income','tip credit','service charge','tip allocation','tip withholding','restaurant','bartender','barista','hotel staff','delivery','server','waitstaff','busser','host','sommelier','valet','bellhop','concierge','housekeeper','room service','spa','massage therapist','nail technician','hair stylist','barber','esthetician','tattoo artist','piercer','dog groomer','dog walker','pet sitter','Uber driver','Lyft driver','DoorDash','Instacart','GrubHub','food delivery','courier','parking attendant','coat check','casino dealer','poker dealer','tour guide','fishing guide','hunting guide','ski instructor','caddy','golf caddy','taxi driver','boat captain','charter captain'],
+      'vendor-payment': ['pay vendor','EIN payment','business pay','supplier pay','1099 vendor','accounts payable','pay supplier','third-party','B2B payment','law firm','accounting firm','staffing agency','landlord','cleaning service','janitorial','pest control','landscaping','snow removal','security company','IT vendor','software vendor','SaaS','cloud provider','internet provider','phone provider','utilities','electric','gas','water','waste management','printing company','mail service','shipping carrier','FedEx','UPS','USPS','DHL','fulfillment center','warehouse','manufacturer','distributor','wholesale supplier','raw materials','parts supplier','equipment vendor','repair service','maintenance','HVAC','plumber','electrician','contractor','construction','architecture firm','engineering firm','marketing agency','PR agency','ad agency','media buyer','graphic design firm','web agency','SEO agency','recruiting firm','background check','payroll vendor','benefits broker','insurance broker','401k provider','bank','lender','financial institution','real estate agent','commercial landlord','property manager','building management'],
+      'fringe-benefits': ['W-2 benefit','taxable benefit','outside JW','additional comp','non-cash benefit','imputed income','reportable','gym','gym membership','wellness','commuter benefit','parking','transit pass','life insurance','company car','cell phone','laptop','housing stipend','tuition','fitness','ClassPass','Peloton','SoulCycle','yoga','meditation','Headspace','Calm','mental health','therapy','EAP','employee assistance','childcare','daycare','dependent care','FSA','HSA','dental','vision','medical','health insurance','short term disability','long term disability','AD&D','pet insurance','legal insurance','identity theft','financial planning','student loan','student loan repayment','tuition reimbursement','education assistance','college','MBA','certification','professional development','LinkedIn Learning','Coursera','Udemy','book stipend','food benefit','lunch','snacks','catered meals','DoorDash for Work','meal kit','groceries','food delivery','commuter','metro card','subway pass','bus pass','train pass','parking pass','car allowance','gas card','Uber for Business','Lyft for Business','rideshare','bike share','electric scooter','home office','internet stipend','equipment','standing desk','ergonomic chair','monitor','keyboard','vacation stipend','PTO','unlimited PTO','sabbatical','volunteer days','paid holidays','floating holiday','company retreat','offsite','team trip','travel benefit','airline miles','lounge access','work from anywhere','remote work benefit','co-working membership','WeWork','flexible work','four-day workweek'],
+      'late-reported': ['already paid','record payment','outside payroll','missed recording','retroactive','manual record','payroll recon','log payment','after the fact','payroll audit','paid outside JW','wire transfer','check','Venmo','Zelle','cash payment','bank transfer','ACH','paper check','personal check','hand delivered','cash','paid in cash','direct payment','off platform','off system','not in Justworks','reported late','past pay period','previous period','prior month','prior quarter','last year','W-2 correction','year-end correction','tax correction','amendment','restatement','audit correction','compliance fix','DOL audit','IRS audit','wage and hour','record keeping','payroll history','update records','add to W-2','add to payroll','reconcile','true up','catch up','close books','year-end close'],
+    };
+
+    // ── Search ──────────────────────────────────────────────────────────────
+    const searchInput = document.getElementById('search-input');
+    const mainContent = document.querySelector('.content-inner');
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.trim().toLowerCase();
+
+      if (!query) {
+        mainContent.classList.remove('search-active');
+        document.querySelectorAll('.card').forEach(c => {
+          c.classList.remove('search-hidden');
+          c.classList.remove('search-visible');
+          const tagsEl = c.querySelector('.card-tags');
+          if (tagsEl) { tagsEl.innerHTML = ''; tagsEl.classList.remove('has-tags'); }
+        });
+        return;
+      }
+
+      mainContent.classList.add('search-active');
+
+      document.querySelectorAll('.card').forEach(card => {
+        const title   = card.querySelector('.card-title')?.textContent.toLowerCase() ?? '';
+        const desc    = card.querySelector('.card-desc')?.textContent.toLowerCase() ?? '';
+        const id      = card.dataset.paymentId ?? '';
+        const tags    = TAGS[id] ?? [];
+        const matchingTags = tags.filter(t => t.toLowerCase().includes(query));
+        const match   = title.includes(query) || desc.includes(query) || matchingTags.length > 0;
+
+        card.classList.toggle('search-hidden', !match);
+        card.classList.toggle('search-visible', match);
+
+        const tagsEl = card.querySelector('.card-tags');
+        if (tagsEl) {
+          tagsEl.innerHTML = matchingTags.slice(0, 3).map(t => `<span class="card-tag">${t}</span>`).join('');
+          tagsEl.classList.toggle('has-tags', matchingTags.length > 0);
+        }
+      });
+    });
+
+    // Wire up existing chips' remove buttons and mark cards as favorited
+    document.querySelectorAll('.fav-chip[data-payment-id]').forEach(chip => {
+      const id = chip.dataset.paymentId;
+      chip.querySelector('.chip-remove')?.addEventListener('click', (e) => { e.stopPropagation(); removeChip(id); });
+      // Mark the corresponding card as already favorited
+      const card = document.querySelector(`.card[data-payment-id="${id}"]`);
+      if (card) {
+        card.classList.add('favorited');
+        const starBtn = card.querySelector('.star-btn');
+        if (starBtn) { starBtn.classList.add('starred'); starBtn.innerHTML = STAR_FILLED; }
+      }
+    });
+
+    updateEmptyState();
+  });
+</script>
+</body>
+</html>
